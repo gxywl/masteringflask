@@ -1,5 +1,5 @@
 class Config(object):
-    pass
+    SECRET_KEY='yourpwd'
 
 class ProdConfig(Config):
     pass

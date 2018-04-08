@@ -1,12 +1,19 @@
+import datetime
+
 from flask import Flask, render_template
+from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
+from flask_wtf import Form
 from sqlalchemy import func
+from wtforms import StringField, TextAreaField, SubmitField
+from wtforms.validators import DataRequired, Length
 
 from config import DevConfig
 
 app = Flask(__name__)
 app.config.from_object(DevConfig)
 db=SQLAlchemy(app)
+bootatrap=Bootstrap(app)
 
 class User(db.Model):
     id=db.Column(db.Integer(),primary_key=True)
@@ -74,9 +81,16 @@ class Comment(db.Model):
     def __repr__(self):
         return "<Comment '{}'>".format(self.text[:15])
 
+
+class CommentForm(Form):
+    name=StringField('Name',validators=[DataRequired(),Length(max=255)])
+    text=TextAreaField(u'Comment',validators=[DataRequired()])
+    submit=SubmitField('Submit')
+
 def sidebar_data():
     recent=Post.query.order_by(Post.publish_date.desc()).limit(5).all()
     top_tags=db.session.query(Tag,func.count(tags.c.post_id).label('total')).join(tags).group_by(Tag).order_by('total DESC').limit(5).all()
+    return  recent,top_tags
 
 @app.route('/')
 @app.route('/<int:page>')
@@ -87,14 +101,23 @@ def home(page=1):
     return render_template('home.html',posts=posts,recent=recent,top_tags=top_tags)
 
 
-@app.route('/post/<int:post_id>')
+@app.route('/post/<int:post_id>',methods=('GET','POST'))
 def post(post_id):
+    form=CommentForm()
+    if form.validate_on_submit():
+        new_comment=Comment()
+        new_comment.name=form.name.data
+        new_comment.text=form.text.data
+        new_comment.post_id=post_id
+        new_comment.date=datetime.datetime.now()
+        db.session.add(new_comment)
+        db.session.commit()
     post = Post.query.get_or_404(post_id)
     tags=post.tags
     comments=post.comments.order_by(Comment.date.desc()).all()
     recent, top_tags = sidebar_data()
 
-    return render_template('post.html', post=post,comments=comments, recent=recent, top_tags=top_tags)
+    return render_template('post.html', post=post,comments=comments, recent=recent, top_tags=top_tags,form=form)
 
 @app.route('/tag/<string:tag_name>')
 def tag(tag_name):
@@ -103,7 +126,7 @@ def tag(tag_name):
     recent, top_tags = sidebar_data()
 
     return render_template('tag.html', tag=tag,posts=posts, recent=recent, top_tags=top_tags)
-
+'''
 @app.route('/user/<string:username>')
 def user(username):
     user = User.query.filter_by(username=username).first_or_404()
@@ -111,7 +134,7 @@ def user(username):
     recent, top_tags = sidebar_data()
 
     return render_template('user.html', user=user,posts=posts, recent=recent, top_tags=top_tags)
-
+'''
 
 
 if __name__ == '__main__':

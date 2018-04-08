@@ -1,10 +1,7 @@
 from flask_migrate import Migrate, MigrateCommand
 from flask_script import Manager, Server
 
-from main import app, db, User
-
-
-
+from main import app, db, User, Post, Tag
 
 migrate=Migrate(app,db)
 
